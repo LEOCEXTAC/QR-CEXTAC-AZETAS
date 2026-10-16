@@ -1,132 +1,197 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lector QR - BITAZETA</title>
+  <meta name="theme-color" content="#082f57">
+  <title>Escanear AZETA · BITAZETA</title>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #0f172a;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      padding: 20px;
-      text-align: center;
+    :root {
+      --azul: #082f57;
+      --azul-2: #123f6b;
+      --naranja: #f09d0f;
+      --fondo: #eef3f8;
+      --texto: #17324d;
+      --borde: #d9e2ec;
+    }
+
+    * {
       box-sizing: border-box;
     }
 
-    h2 {
-      color: #0d9488;
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 22px 14px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      background: var(--fondo);
+      color: var(--texto);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .wrap {
+      width: min(560px, 100%);
+      padding: 24px;
+      background: #fff;
+      border: 1px solid var(--borde);
+      border-radius: 18px;
+      box-shadow: 0 14px 40px rgba(8, 47, 87, .12);
+    }
+
+    .marca {
+      margin-bottom: 9px;
+      color: var(--naranja);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 1.7px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      color: var(--azul);
+      font-size: 25px;
+      line-height: 1.2;
+    }
+
+    .intro {
+      margin: 0 0 18px;
+      color: #5d7083;
+      font-size: 14px;
+      line-height: 1.55;
     }
 
     #reader {
       width: 100%;
-      max-width: 400px;
-      background: white;
-      color: #0f172a;
-      border-radius: 12px;
       overflow: hidden;
-      margin-top: 20px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      border: 1px solid var(--borde);
+      border-radius: 12px;
+      background: #f8fafc;
     }
 
-    .btn {
-      background-color: #f97316;
-      color: white;
-      border: none;
-      padding: 12px 20px;
-      border-radius: 6px;
-      font-weight: 700;
-      cursor: pointer;
-      margin-top: 20px;
-      font-size: 16px;
-    }
-
-    .btn:hover {
-      background-color: #ea580c;
-    }
-
-    #status {
-      margin-top: 15px;
-      font-size: 14px;
-      font-weight: bold;
-      white-space: pre-line;
+    .estado {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border: 1px solid var(--borde);
+      border-radius: 10px;
+      background: #f7f9fc;
+      color: var(--texto);
+      font-size: 13px;
+      line-height: 1.45;
       overflow-wrap: anywhere;
+    }
+
+    .diagnostico {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px dashed #b7c5d5;
+      border-radius: 10px;
+      background: #fbfcfe;
+    }
+
+    .diagnostico h2 {
+      margin: 0 0 8px;
+      color: var(--azul);
+      font-size: 13px;
     }
 
     #diagnostico {
-      width: 100%;
-      max-width: 600px;
-      margin-top: 16px;
-      padding: 12px;
-      border: 1px solid #475569;
-      border-radius: 8px;
-      background: #1e293b;
-      color: #cbd5e1;
-      text-align: left;
+      max-height: 240px;
+      overflow: auto;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
-      box-sizing: border-box;
-      font-size: 12px;
+      color: #34495e;
+      font: 11px/1.5 Consolas, "Courier New", monospace;
+    }
+
+    .pie {
+      margin-top: 18px;
+      color: #73869a;
+      text-align: center;
+      font-size: 10px;
+      letter-spacing: 1px;
+    }
+
+    @media (max-width: 480px) {
+      .wrap {
+        padding: 18px;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
     }
   </style>
-
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
 
 <body>
-  <h2>ESCANEAR AZETA</h2>
-  <p>Apunte la cámara al código QR de la carpeta física.</p>
+  <main class="wrap">
 
-  <div id="reader"></div>
+    <div class="marca">BITAZETA · GESTIÓN Y TRAZABILIDAD</div>
 
-  <div id="status" style="color:#cbd5e1;">
-    Esperando autorización de BITAZETA...
-  </div>
+    <h1>ESCANEAR AZETA</h1>
 
-  <div id="diagnostico">Diagnóstico: página cargada. Esperando mensajes.</div>
+    <p class="intro">
+      Apunte la cámara al código QR de la carpeta física.
+      Al detectarlo, el código regresará automáticamente a BITAZETA
+      para consultar la información.
+    </p>
 
-  <button
-    class="btn"
-    id="btn-restart"
-    style="display:none;"
-    onclick="iniciarEscaner()">
-    VOLVER A ESCANEAR
-  </button>
+    <div id="reader"></div>
+
+    <div id="estado" class="estado">
+      Esperando autorización de BITAZETA para iniciar la cámara...
+    </div>
+
+    <section class="diagnostico">
+      <h2>Diagnóstico técnico</h2>
+      <div id="diagnostico">Diagnóstico: página cargada. Esperando mensajes.</div>
+    </section>
+
+    <div class="pie">BITAZETA · CONTROL DE AZETAS</div>
+
+  </main>
 
   <script>
-    let html5QrcodeScanner = null;
+    'use strict';
+
+    const estado = document.getElementById('estado');
+    const diagnostico = document.getElementById('diagnostico');
+
     let autorizado = false;
-    let iniciando = false;
-    let lecturaProcesada = false;
     let origenBitazeta = '';
-
-    const statusEl = document.getElementById('status');
-    const diagnosticoEl = document.getElementById('diagnostico');
-    const restartBtn = document.getElementById('btn-restart');
-
-    function mostrarEstado(texto, color) {
-      statusEl.textContent = texto;
-      statusEl.style.color = color;
-    }
+    let scanner = null;
+    let iniciando = false;
+    let enviado = false;
 
     function registrarDiagnostico(texto) {
-      const hora = new Date().toLocaleTimeString();
-      const linea = '[' + hora + '] ' + texto;
+      const hora = new Date().toLocaleTimeString('es-CO', {
+        hour12: false
+      });
 
-      diagnosticoEl.textContent += '\n' + linea;
-      console.log('[BITAZETA QR DIAGNÓSTICO]', linea);
+      const linea = '[' + hora + '] ' + String(texto);
+
+      if (diagnostico) {
+        diagnostico.textContent += '\n' + linea;
+        diagnostico.scrollTop = diagnostico.scrollHeight;
+      }
+
+      console.log(linea);
     }
 
-    // Aceptar únicamente orígenes HTTPS conocidos de Google Apps Script,
-    // incluidos los subdominios dinámicos usados por HTML Service.
+    function actualizarEstado(texto) {
+      if (estado) {
+        estado.textContent = texto;
+      }
+
+      registrarDiagnostico(texto);
+    }
+
+    // Validación corregida del origen de Google Apps Script.
     function esOrigenAppsScript(origen) {
       try {
         const url = new URL(origen);
@@ -136,253 +201,267 @@
           host === 'script.google.com' ||
           host === 'script.googleusercontent.com' ||
           host.endsWith('.script.googleusercontent.com') ||
-          host.endsWith('-script.googleusercontent.com');
+          host.endsWith('-script.googleusercontent.com') ||
+          /^n-[a-z0-9-]+-script\.googleusercontent\.com$/.test(host);
+
+        registrarDiagnostico(
+          'Validación de origen: host=' + host +
+          ' | permitido=' + esGoogleAppsScript
+        );
 
         return url.protocol === 'https:' && esGoogleAppsScript;
+
       } catch (error) {
+        registrarDiagnostico(
+          'Error al validar origen: ' +
+          (error && error.message ? error.message : error)
+        );
+
         return false;
       }
     }
 
-    window.addEventListener('message', function(event) {
-      const tipo = event.data && event.data.type
-        ? String(event.data.type)
-        : '(sin tipo de mensaje)';
+    function limpiarCodigo(raw) {
+      const texto = String(raw || '').trim().toUpperCase();
 
+      if (!texto) {
+        return '';
+      }
+
+      try {
+        const u = new URL(texto);
+
+        const valor =
+          u.searchParams.get('az') ||
+          u.searchParams.get('codigo') ||
+          u.searchParams.get('code');
+
+        if (valor) {
+          return String(valor).trim().toUpperCase();
+        }
+
+      } catch (e) {
+        // El QR también puede contener directamente el código AZETA.
+      }
+
+      const coincidencia = texto.match(
+        /(?:^|[^A-Z0-9])(AZ-\d+)(?:[^A-Z0-9]|$)/
+      );
+
+      return coincidencia ? coincidencia[1] : texto;
+    }
+
+    function iniciarEscaner() {
+      if (!autorizado) {
+        actualizarEstado(
+          'El lector todavía no está autorizado por BITAZETA.'
+        );
+        return;
+      }
+
+      if (iniciando || scanner) {
+        return;
+      }
+
+      if (typeof Html5QrcodeScanner === 'undefined') {
+        actualizarEstado(
+          'No se pudo cargar la librería del lector QR. ' +
+          'Verifique la conexión a internet y recargue con Ctrl + F5.'
+        );
+        return;
+      }
+
+      iniciando = true;
+
+      actualizarEstado(
+        'Autorización recibida. Preparando la cámara...'
+      );
+
+      try {
+        scanner = new Html5QrcodeScanner(
+          'reader',
+          {
+            fps: 10,
+
+            qrbox: function(viewfinderWidth, viewfinderHeight) {
+              const size = Math.floor(
+                Math.min(viewfinderWidth, viewfinderHeight, 280) * 0.82
+              );
+
+              return {
+                width: size,
+                height: size
+              };
+            },
+
+            rememberLastUsedCamera: true,
+
+            supportedScanTypes: [
+              Html5QrcodeScanType.SCAN_TYPE_CAMERA
+            ]
+          },
+          false
+        );
+
+        scanner.render(
+          function(decodedText) {
+            if (enviado || !autorizado) {
+              return;
+            }
+
+            const codigo = limpiarCodigo(decodedText);
+
+            if (!codigo) {
+              actualizarEstado(
+                'Se leyó el QR, pero no se pudo identificar el código de AZETA.'
+              );
+              return;
+            }
+
+            enviado = true;
+
+            actualizarEstado(
+              'QR leído: ' + codigo + '. Enviando código a BITAZETA...'
+            );
+
+            try {
+              if (!window.opener || window.opener.closed) {
+                enviado = false;
+
+                actualizarEstado(
+                  'No se encuentra abierta la ventana de BITAZETA. ' +
+                  'Cierre este lector y ábralo nuevamente desde BITAZETA.'
+                );
+
+                return;
+              }
+
+              window.opener.postMessage(
+                {
+                  type: 'AZ_SCAN',
+                  code: codigo,
+                  origenBitazeta: origenBitazeta
+                },
+                origenBitazeta
+              );
+
+              actualizarEstado(
+                'Código enviado a BITAZETA. ' +
+                'Puede regresar a la ventana principal.'
+              );
+
+            } catch (error) {
+              enviado = false;
+
+              actualizarEstado(
+                'No fue posible enviar el código: ' +
+                (error && error.message ? error.message : error)
+              );
+            }
+          },
+
+          function() {
+            // Los errores normales de lectura por fotograma se ignoran
+            // para evitar saturar el diagnóstico.
+          }
+        );
+
+        iniciando = false;
+
+        registrarDiagnostico(
+          'Lector QR inicializado; esperando lectura.'
+        );
+
+      } catch (error) {
+        iniciando = false;
+        scanner = null;
+
+        actualizarEstado(
+          'No se pudo iniciar el lector QR: ' +
+          (error && error.message ? error.message : error)
+        );
+      }
+    }
+
+    window.addEventListener('message', function(event) {
       registrarDiagnostico(
         'Mensaje recibido. origen=' + event.origin +
         ' | esOpener=' + (event.source === window.opener) +
         ' | hayOpener=' + Boolean(window.opener) +
-        ' | tipo=' + tipo
+        ' | tipo=' +
+        (event.data && event.data.type
+          ? event.data.type
+          : 'sin tipo')
       );
 
       if (!window.opener) {
-        registrarDiagnostico(
-          'RECHAZADO: esta ventana no tiene opener.'
+        actualizarEstado(
+          'Este lector debe abrirse desde BITAZETA. ' +
+          'Cierre la ventana y vuelva a pulsar ESCANEAR QR.'
         );
         return;
       }
 
       if (event.source !== window.opener) {
         registrarDiagnostico(
-          'RECHAZADO: el mensaje no proviene de la ventana que abrió el lector.'
+          'RECHAZADO: el mensaje no proviene de la ventana que abrió este lector.'
         );
         return;
       }
 
       if (!esOrigenAppsScript(event.origin)) {
+        actualizarEstado(
+          'Se recibió un mensaje, pero el origen no fue reconocido. ' +
+          'Revise el diagnóstico.'
+        );
+
         registrarDiagnostico(
           'RECHAZADO: el origen no está en la lista permitida de Google Apps Script.'
         );
 
-        mostrarEstado(
-          'Se recibió un mensaje, pero el origen no fue reconocido. Revise el diagnóstico.',
-          '#fbbf24'
+        return;
+      }
+
+      if (!event.data || event.data.type !== 'BITAZETA_QR_AUTH') {
+        registrarDiagnostico(
+          'Mensaje ignorado: el tipo no es BITAZETA_QR_AUTH.'
         );
         return;
       }
 
-      if (
-        !event.data ||
-        event.data.type !== 'BITAZETA_QR_AUTH' ||
-        event.data.autorizado !== true
-      ) {
-        registrarDiagnostico(
-          'Mensaje ignorado: no contiene una autorización válida.'
-        );
-        return;
-      }
+      registrarDiagnostico(
+        'Campo autorizado recibido: ' + String(event.data.autorizado)
+      );
 
-      origenBitazeta = event.origin;
-
-      if (autorizado) {
-        registrarDiagnostico(
-          'La autorización ya se había recibido.'
+      if (event.data.autorizado !== true) {
+        actualizarEstado(
+          'BITAZETA no autorizó el escáner. ' +
+          'Regrese a la aplicación e intente nuevamente.'
         );
         return;
       }
 
       autorizado = true;
+      origenBitazeta = event.origin;
 
-      registrarDiagnostico(
-        'AUTORIZACIÓN ACEPTADA. Se iniciará el lector.'
-      );
-
-      mostrarEstado(
-        'BITAZETA autorizó el acceso. Iniciando cámara...',
-        '#10b981'
+      actualizarEstado(
+        'Sesión autorizada por BITAZETA. Solicitando acceso a la cámara...'
       );
 
       iniciarEscaner();
     });
 
-    function onScanSuccess(decodedText) {
-      if (!autorizado || lecturaProcesada) return;
+    registrarDiagnostico(
+      'Página cargada. URL=' + window.location.href
+    );
 
-      lecturaProcesada = true;
-      restartBtn.style.display = 'none';
+    registrarDiagnostico(
+      'Origen propio=' + window.location.origin
+    );
 
-      mostrarEstado(
-        'Código detectado: ' + decodedText +
-        '\nEnviando a BITAZETA...',
-        '#10b981'
-      );
-
-      if (
-        window.opener &&
-        origenBitazeta &&
-        !window.opener.closed
-      ) {
-        window.opener.postMessage(
-          {
-            type: 'AZ_SCAN',
-            code: decodedText
-          },
-          origenBitazeta
-        );
-
-        registrarDiagnostico(
-          'Código QR enviado a BITAZETA.'
-        );
-
-        restartBtn.style.display = 'inline-block';
-      } else {
-        lecturaProcesada = false;
-
-        mostrarEstado(
-          'No se pudo comunicar con BITAZETA. Cierre el lector y ábralo nuevamente desde la aplicación.',
-          '#ef4444'
-        );
-
-        registrarDiagnostico(
-          'ERROR: no hay una ventana BITAZETA disponible para devolver el código.'
-        );
-      }
-
-      if (html5QrcodeScanner) {
-        html5QrcodeScanner.clear().catch(function() {});
-      }
-    }
-
-    function onScanFailure(error) {
-      // Ignorar errores de lectura de fotogramas.
-    }
-
-    function iniciarEscaner() {
-      if (!autorizado) {
-        mostrarEstado(
-          'Acceso no autorizado. Abra el lector desde BITAZETA.',
-          '#ef4444'
-        );
-
-        registrarDiagnostico(
-          'Inicio de cámara bloqueado: falta autorización.'
-        );
-        return;
-      }
-
-      if (iniciando) return;
-
-      iniciando = true;
-      lecturaProcesada = false;
-      restartBtn.style.display = 'none';
-
-      mostrarEstado(
-        'Solicitando acceso a la cámara...',
-        '#cbd5e1'
-      );
-
-      if (typeof Html5QrcodeScanner === 'undefined') {
-        iniciando = false;
-
-        mostrarEstado(
-          'No se pudo cargar la librería del lector QR. Compruebe su conexión a Internet y recargue la página.',
-          '#ef4444'
-        );
-
-        registrarDiagnostico(
-          'ERROR: Html5QrcodeScanner no está disponible.'
-        );
-        return;
-      }
-
-      try {
-        html5QrcodeScanner = new Html5QrcodeScanner(
-          'reader',
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            rememberLastUsedCamera: true
-          },
-          false
-        );
-
-        html5QrcodeScanner.render(
-          function(decodedText, decodedResult) {
-            iniciando = false;
-            onScanSuccess(decodedText, decodedResult);
-          },
-          onScanFailure
-        );
-
-        mostrarEstado(
-          'Seleccione la cámara y permita el acceso cuando el navegador lo solicite.',
-          '#cbd5e1'
-        );
-
-        registrarDiagnostico(
-          'Lector inicializado; esperando permiso y lectura.'
-        );
-      } catch (error) {
-        iniciando = false;
-
-        mostrarEstado(
-          'No se pudo iniciar el lector: ' +
-          (error && error.message
-            ? error.message
-            : String(error)),
-          '#ef4444'
-        );
-
-        registrarDiagnostico(
-          'ERROR al iniciar lector: ' +
-          (error && error.message
-            ? error.message
-            : String(error))
-        );
-      }
-    }
-
-    window.addEventListener('load', function() {
-      registrarDiagnostico(
-        'Página cargada. URL=' + location.href
-      );
-
-      registrarDiagnostico(
-        'Origen propio=' + location.origin
-      );
-
-      registrarDiagnostico(
-        'Tiene opener=' + Boolean(window.opener)
-      );
-
-      if (!window.opener) {
-        mostrarEstado(
-          'Abra el lector desde BITAZETA para autorizar el acceso.',
-          '#ef4444'
-        );
-
-        registrarDiagnostico(
-          'AVISO: abrir esta URL directamente no autoriza la sesión.'
-        );
-        return;
-      }
-
-      mostrarEstado(
-        'Esperando autorización de BITAZETA...',
-        '#cbd5e1'
-      );
-    });
+    registrarDiagnostico(
+      'Tiene opener=' + Boolean(window.opener)
+    );
   </script>
 </body>
 </html>
