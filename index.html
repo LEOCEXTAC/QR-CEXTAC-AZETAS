@@ -1,83 +1,280 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lector QR - BITAZETA</title>
+
   <style>
-    body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; text-align: center; }
-    h2 { color: #0d9488; }
-    #reader { width: 100%; max-width: 400px; background: white; border-radius: 12px; overflow: hidden; margin-top: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-    .btn { background-color: #f97316; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: 700; cursor: pointer; margin-top: 20px; font-size: 16px; }
-    .btn:hover { background-color: #ea580c; }
-    #status { margin-top: 15px; font-size: 14px; font-weight: bold; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #0f172a;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    h2 {
+      color: #0d9488;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      background: white;
+      color: #0f172a;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-top: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+
+    .btn {
+      background-color: #f97316;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 20px;
+      font-size: 16px;
+    }
+
+    .btn:hover {
+      background-color: #ea580c;
+    }
+
+    #status {
+      margin-top: 15px;
+      font-size: 14px;
+      font-weight: bold;
+      white-space: pre-line;
+      overflow-wrap: anywhere;
+    }
   </style>
+
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
-<body>
 
+<body>
   <h2>ESCANEAR AZETA</h2>
   <p>Apunte la cámara al código QR de la carpeta física.</p>
 
   <div id="reader"></div>
-  <div id="status" style="color: #cbd5e1;">Cargando cámara...</div>
 
-  <button class="btn" id="btn-restart" style="display:none;" onclick="iniciarEscaner()">VOLVER A ESCANEAR</button>
+  <div id="status" style="color: #cbd5e1;">
+    Esperando autorización de BITAZETA...
+  </div>
+
+  <button
+    class="btn"
+    id="btn-restart"
+    style="display:none;"
+    onclick="iniciarEscaner()">
+    VOLVER A ESCANEAR
+  </button>
 
   <script>
-    let html5QrcodeScanner;
+    let html5QrcodeScanner = null;
+    let autorizado = false;
+    let iniciando = false;
+    let lecturaProcesada = false;
+    let origenBitazeta = '';
 
-    function onScanSuccess(decodedText, decodedResult) {
-      // Detener escáner temporalmente para evitar lecturas múltiples
-      if (html5QrcodeScanner) {
-        html5QrcodeScanner.clear();
+    const statusEl = document.getElementById('status');
+    const restartBtn = document.getElementById('btn-restart');
+
+    function mostrarEstado(texto, color) {
+      statusEl.textContent = texto;
+      statusEl.style.color = color;
+    }
+
+    // Solo aceptar autorización desde la ventana que abrió el lector
+    // y desde un origen compatible con Google Apps Script.
+    function esOrigenAppsScript(origen) {
+      try {
+        const url = new URL(origen);
+        const host = url.hostname;
+
+        return url.protocol === 'https:' && (
+          host === 'script.google.com' ||
+          host === 'script.googleusercontent.com' ||
+          host.endsWith('.script.googleusercontent.com')
+        );
+      } catch (error) {
+        return false;
+      }
+    }
+
+    window.addEventListener('message', function(event) {
+      if (!window.opener || event.source !== window.opener) {
+        return;
       }
 
-      document.getElementById('status').style.color = '#10b981';
-      document.getElementById('status').innerText = 'Código Detectado: ' + decodedText + '\nEnviando a BITAZETA...';
-      document.getElementById('btn-restart').style.display = 'inline-block';
+      if (!esOrigenAppsScript(event.origin)) {
+        return;
+      }
 
-      // Enviar de vuelta a la ventana padre (Google Apps Script / BITAZETA)
-      if (window.opener) {
-        window.opener.postMessage({
-          type: 'AZ_SCAN',
-          code: decodedText
-        }, '*'); // Para mayor seguridad, puedes cambiar '*' por 'https://script.google.com'
+      if (
+        !event.data ||
+        event.data.type !== 'BITAZETA_QR_AUTH' ||
+        event.data.autorizado !== true
+      ) {
+        return;
+      }
+
+      origenBitazeta = event.origin;
+
+      if (autorizado) {
+        return;
+      }
+
+      autorizado = true;
+
+      mostrarEstado(
+        'BITAZETA autorizó el acceso. Iniciando cámara...',
+        '#10b981'
+      );
+
+      iniciarEscaner();
+    });
+
+    function onScanSuccess(decodedText) {
+      if (!autorizado || lecturaProcesada) {
+        return;
+      }
+
+      lecturaProcesada = true;
+      restartBtn.style.display = 'none';
+
+      mostrarEstado(
+        'Código detectado: ' + decodedText +
+        '\nEnviando a BITAZETA...',
+        '#10b981'
+      );
+
+      // Enviar únicamente al origen de la ventana que autorizó el lector.
+      if (
+        window.opener &&
+        origenBitazeta &&
+        !window.opener.closed
+      ) {
+        window.opener.postMessage(
+          {
+            type: 'AZ_SCAN',
+            code: decodedText
+          },
+          origenBitazeta
+        );
+
+        restartBtn.style.display = 'inline-block';
       } else {
-        document.getElementById('status').style.color = '#ef4444';
-        document.getElementById('status').innerText = 'No se encontró la aplicación BITAZETA abierta.';
+        lecturaProcesada = false;
+
+        mostrarEstado(
+          'No se pudo comunicar con BITAZETA. ' +
+          'Cierre el lector y ábralo nuevamente desde la aplicación.',
+          '#ef4444'
+        );
+      }
+
+      if (html5QrcodeScanner) {
+        html5QrcodeScanner.clear().catch(function() {
+          // La lectura ya fue procesada; no repetir el envío.
+        });
       }
     }
 
     function onScanFailure(error) {
-      // Los errores de lectura cuadro por cuadro se ignoran visualmente para no saturar al usuario
+      // Los errores de lectura de cada fotograma se ignoran.
     }
 
     function iniciarEscaner() {
-      document.getElementById('btn-restart').style.display = 'none';
-      document.getElementById('status').style.color = '#cbd5e1';
-      document.getElementById('status').innerText = 'Buscando código QR...';
-      
-      html5QrcodeScanner = new Html5QrcodeScanner(
-        "reader",
-        { fps: 10, qrbox: {width: 250, height: 250} },
-        /* verbose= */ false
-      );
-      html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-    }
+      if (!autorizado) {
+        mostrarEstado(
+          'Acceso no autorizado. Abra el lector desde BITAZETA.',
+          '#ef4444'
+        );
+        return;
+      }
 
-    // Comprobar parámetros de sesión
-    window.onload = function() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const session = urlParams.get('session');
-      
-      if (!session) {
-        document.getElementById('status').style.color = '#ef4444';
-        document.getElementById('status').innerText = 'Acceso no autorizado. Inicie el escáner desde BITAZETA.';
-      } else {
-        iniciarEscaner();
+      if (iniciando) {
+        return;
+      }
+
+      iniciando = true;
+      lecturaProcesada = false;
+      restartBtn.style.display = 'none';
+
+      mostrarEstado('Solicitando acceso a la cámara...', '#cbd5e1');
+
+      if (typeof Html5QrcodeScanner === 'undefined') {
+        iniciando = false;
+        mostrarEstado(
+          'No se pudo cargar la librería del lector QR. ' +
+          'Compruebe su conexión a Internet y recargue la página.',
+          '#ef4444'
+        );
+        return;
+      }
+
+      try {
+        html5QrcodeScanner = new Html5QrcodeScanner(
+          'reader',
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            rememberLastUsedCamera: true
+          },
+          false
+        );
+
+        html5QrcodeScanner.render(
+          function(decodedText, decodedResult) {
+            iniciando = false;
+            onScanSuccess(decodedText, decodedResult);
+          },
+          onScanFailure
+        );
+
+        mostrarEstado(
+          'Seleccione la cámara y permita el acceso cuando el navegador lo solicite.',
+          '#cbd5e1'
+        );
+      } catch (error) {
+        iniciando = false;
+        mostrarEstado(
+          'No se pudo iniciar el lector: ' +
+          (error && error.message ? error.message : String(error)),
+          '#ef4444'
+        );
       }
     }
+
+    // El lector no inicia la cámara ni se autoriza mediante la URL.
+    window.addEventListener('load', function() {
+      if (!window.opener) {
+        mostrarEstado(
+          'Abra el lector desde BITAZETA para autorizar el acceso.',
+          '#ef4444'
+        );
+        return;
+      }
+
+      mostrarEstado(
+        'Esperando autorización de BITAZETA...',
+        '#cbd5e1'
+      );
+    });
   </script>
 </body>
 </html>
