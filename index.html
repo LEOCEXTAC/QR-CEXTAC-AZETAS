@@ -22,9 +22,7 @@
       box-sizing: border-box;
     }
 
-    h2 {
-      color: #0d9488;
-    }
+    h2 { color: #0d9488; }
 
     #reader {
       width: 100%;
@@ -49,9 +47,7 @@
       font-size: 16px;
     }
 
-    .btn:hover {
-      background-color: #ea580c;
-    }
+    .btn:hover { background-color: #ea580c; }
 
     #status {
       margin-top: 15px;
@@ -59,6 +55,22 @@
       font-weight: bold;
       white-space: pre-line;
       overflow-wrap: anywhere;
+    }
+
+    #diagnostico {
+      width: 100%;
+      max-width: 600px;
+      margin-top: 16px;
+      padding: 12px;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      background: #1e293b;
+      color: #cbd5e1;
+      text-align: left;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      box-sizing: border-box;
+      font-size: 12px;
     }
   </style>
 
@@ -71,9 +83,11 @@
 
   <div id="reader"></div>
 
-  <div id="status" style="color: #cbd5e1;">
+  <div id="status" style="color:#cbd5e1;">
     Esperando autorización de BITAZETA...
   </div>
+
+  <div id="diagnostico">Diagnóstico: página cargada. Esperando mensajes.</div>
 
   <button
     class="btn"
@@ -91,6 +105,7 @@
     let origenBitazeta = '';
 
     const statusEl = document.getElementById('status');
+    const diagnosticoEl = document.getElementById('diagnostico');
     const restartBtn = document.getElementById('btn-restart');
 
     function mostrarEstado(texto, color) {
@@ -98,8 +113,14 @@
       statusEl.style.color = color;
     }
 
-    // Solo aceptar autorización desde la ventana que abrió el lector
-    // y desde un origen compatible con Google Apps Script.
+    function registrarDiagnostico(texto) {
+      const hora = new Date().toLocaleTimeString();
+      const linea = '[' + hora + '] ' + texto;
+
+      diagnosticoEl.textContent += '\n' + linea;
+      console.log('[BITAZETA QR DIAGNÓSTICO]', linea);
+    }
+
     function esOrigenAppsScript(origen) {
       try {
         const url = new URL(origen);
@@ -116,11 +137,40 @@
     }
 
     window.addEventListener('message', function(event) {
-      if (!window.opener || event.source !== window.opener) {
+      const tipo = event.data && event.data.type
+        ? String(event.data.type)
+        : '(sin tipo de mensaje)';
+
+      registrarDiagnostico(
+        'Mensaje recibido. origen=' + event.origin +
+        ' | esOpener=' + (event.source === window.opener) +
+        ' | hayOpener=' + Boolean(window.opener) +
+        ' | tipo=' + tipo
+      );
+
+      if (!window.opener) {
+        registrarDiagnostico(
+          'RECHAZADO: esta ventana no tiene opener.'
+        );
+        return;
+      }
+
+      if (event.source !== window.opener) {
+        registrarDiagnostico(
+          'RECHAZADO: el mensaje no proviene de la ventana que abrió el lector.'
+        );
         return;
       }
 
       if (!esOrigenAppsScript(event.origin)) {
+        registrarDiagnostico(
+          'RECHAZADO: el origen no está en la lista permitida de Google Apps Script.'
+        );
+
+        mostrarEstado(
+          'Se recibió un mensaje, pero el origen no fue reconocido. Revise el diagnóstico.',
+          '#fbbf24'
+        );
         return;
       }
 
@@ -129,16 +179,26 @@
         event.data.type !== 'BITAZETA_QR_AUTH' ||
         event.data.autorizado !== true
       ) {
+        registrarDiagnostico(
+          'Mensaje ignorado: no contiene una autorización válida.'
+        );
         return;
       }
 
       origenBitazeta = event.origin;
 
       if (autorizado) {
+        registrarDiagnostico(
+          'La autorización ya se había recibido.'
+        );
         return;
       }
 
       autorizado = true;
+
+      registrarDiagnostico(
+        'AUTORIZACIÓN ACEPTADA. Se iniciará el lector.'
+      );
 
       mostrarEstado(
         'BITAZETA autorizó el acceso. Iniciando cámara...',
@@ -149,9 +209,7 @@
     });
 
     function onScanSuccess(decodedText) {
-      if (!autorizado || lecturaProcesada) {
-        return;
-      }
+      if (!autorizado || lecturaProcesada) return;
 
       lecturaProcesada = true;
       restartBtn.style.display = 'none';
@@ -162,7 +220,6 @@
         '#10b981'
       );
 
-      // Enviar únicamente al origen de la ventana que autorizó el lector.
       if (
         window.opener &&
         origenBitazeta &&
@@ -176,26 +233,31 @@
           origenBitazeta
         );
 
+        registrarDiagnostico(
+          'Código QR enviado a BITAZETA.'
+        );
+
         restartBtn.style.display = 'inline-block';
       } else {
         lecturaProcesada = false;
 
         mostrarEstado(
-          'No se pudo comunicar con BITAZETA. ' +
-          'Cierre el lector y ábralo nuevamente desde la aplicación.',
+          'No se pudo comunicar con BITAZETA. Cierre el lector y ábralo nuevamente desde la aplicación.',
           '#ef4444'
+        );
+
+        registrarDiagnostico(
+          'ERROR: no hay una ventana BITAZETA disponible para devolver el código.'
         );
       }
 
       if (html5QrcodeScanner) {
-        html5QrcodeScanner.clear().catch(function() {
-          // La lectura ya fue procesada; no repetir el envío.
-        });
+        html5QrcodeScanner.clear().catch(function() {});
       }
     }
 
     function onScanFailure(error) {
-      // Los errores de lectura de cada fotograma se ignoran.
+      // Ignorar errores de lectura de fotogramas.
     }
 
     function iniciarEscaner() {
@@ -204,25 +266,34 @@
           'Acceso no autorizado. Abra el lector desde BITAZETA.',
           '#ef4444'
         );
+
+        registrarDiagnostico(
+          'Inicio de cámara bloqueado: falta autorización.'
+        );
         return;
       }
 
-      if (iniciando) {
-        return;
-      }
+      if (iniciando) return;
 
       iniciando = true;
       lecturaProcesada = false;
       restartBtn.style.display = 'none';
 
-      mostrarEstado('Solicitando acceso a la cámara...', '#cbd5e1');
+      mostrarEstado(
+        'Solicitando acceso a la cámara...',
+        '#cbd5e1'
+      );
 
       if (typeof Html5QrcodeScanner === 'undefined') {
         iniciando = false;
+
         mostrarEstado(
-          'No se pudo cargar la librería del lector QR. ' +
-          'Compruebe su conexión a Internet y recargue la página.',
+          'No se pudo cargar la librería del lector QR. Compruebe su conexión a Internet y recargue la página.',
           '#ef4444'
+        );
+
+        registrarDiagnostico(
+          'ERROR: Html5QrcodeScanner no está disponible.'
         );
         return;
       }
@@ -250,22 +321,51 @@
           'Seleccione la cámara y permita el acceso cuando el navegador lo solicite.',
           '#cbd5e1'
         );
+
+        registrarDiagnostico(
+          'Lector inicializado; esperando permiso y lectura.'
+        );
       } catch (error) {
         iniciando = false;
+
         mostrarEstado(
           'No se pudo iniciar el lector: ' +
-          (error && error.message ? error.message : String(error)),
+          (error && error.message
+            ? error.message
+            : String(error)),
           '#ef4444'
+        );
+
+        registrarDiagnostico(
+          'ERROR al iniciar lector: ' +
+          (error && error.message
+            ? error.message
+            : String(error))
         );
       }
     }
 
-    // El lector no inicia la cámara ni se autoriza mediante la URL.
     window.addEventListener('load', function() {
+      registrarDiagnostico(
+        'Página cargada. URL=' + location.href
+      );
+
+      registrarDiagnostico(
+        'Origen propio=' + location.origin
+      );
+
+      registrarDiagnostico(
+        'Tiene opener=' + Boolean(window.opener)
+      );
+
       if (!window.opener) {
         mostrarEstado(
           'Abra el lector desde BITAZETA para autorizar el acceso.',
           '#ef4444'
+        );
+
+        registrarDiagnostico(
+          'AVISO: abrir esta URL directamente no autoriza la sesión.'
         );
         return;
       }
