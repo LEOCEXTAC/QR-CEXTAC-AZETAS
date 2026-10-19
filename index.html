@@ -1,29 +1,340 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BITAZETA · Escáner QR</title>
-<script src="https://unpkg.com/html5-qrcode@2.3.8"></script>
-<style>
-:root{color-scheme:light;--navy:#0f172a;--teal:#0d9488;--line:#dbe3ea;--muted:#64748b;--red:#b91c1c}
-*{box-sizing:border-box}body{margin:0;background:#f8fafc;color:var(--navy);font:16px system-ui,-apple-system,Segoe UI,sans-serif}.wrap{width:min(100%,620px);margin:0 auto;padding:18px}.head{padding:12px 4px 18px}.head h1{font-size:22px;margin:0}.head p{margin:5px 0 0;color:var(--muted);font-size:13px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 4px 18px #0f172a0a}#reader{width:100%;min-height:280px;overflow:hidden;border-radius:10px;background:#0f172a}button,select{width:100%;padding:13px;border-radius:9px;border:1px solid var(--line);font:inherit;margin-top:10px}button{background:var(--teal);color:#fff;border:0;font-weight:700;cursor:pointer}button:disabled{opacity:.5}#estado{margin-top:12px;padding:10px 12px;border-radius:8px;background:#f1f5f9;color:#475569;font-size:13px}#estado.error{background:#fee2e2;color:var(--red)}#estado.ok{background:#dcfce7;color:#166534}.small{font-size:12px;color:var(--muted);margin-top:10px}@media(min-width:560px){.wrap{padding:26px}}
-</style></head>
-<body><main class="wrap"><header class="head"><h1>BITAZETA · ESCANEAR QR</h1><p>Apunte la cámara al código impreso de la AZETA.</p></header><section class="card"><div id="reader"></div><label for="camera" style="display:block;margin-top:12px;font-size:12px;color:#64748b">Cámara</label><select id="camera"><option value="">Detectando cámaras…</option></select><button id="iniciar" type="button" disabled>Iniciar cámara</button><div id="estado">Esperando autorización de BITAZETA…</div><p class="small">Esta ventana se comunica con BITAZETA para enviar el código leído.</p></section></main>
-<script>
-(function(){
- const estado=document.getElementById('estado'), sel=document.getElementById('camera'), btn=document.getElementById('iniciar');
- let autorizado=false, origenPadre='', lector=null, iniciando=false, ultimaLectura='';
- function status(t,tipo){estado.textContent=t;estado.className=tipo||'';}
- function origenPermitido(origin){try{const u=new URL(origin);return u.protocol==='https:'&&(u.hostname==='script.google.com'||u.hostname.endsWith('.googleusercontent.com'));}catch(e){return false;}}
- window.addEventListener('message',async function(e){
-   if(e.source!==window.opener||!e.data||e.data.type!=='BITAZETA_QR_AUTH')return;
-   if(!origenPermitido(e.origin)){status('No se pudo validar la ventana de BITAZETA.','error');return;}
-   if(e.data.autorizado!==true){status('La sesión no está autorizada.','error');return;}
-   origenPadre=e.origin;autorizado=true;status('Autorizado. Seleccione la cámara e inicie el escaneo.','ok');btn.disabled=false;await listarCamaras();
- });
- async function listarCamaras(){try{const cams=await Html5Qrcode.getCameras();sel.innerHTML='';if(!cams.length){sel.innerHTML='<option value="">No se encontraron cámaras</option>';return;}cams.forEach((c,i)=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.label||('Cámara '+(i+1));sel.appendChild(o);});const trasera=cams.find(c=>/back|rear|environment|trasera/i.test(c.label||''));if(trasera)sel.value=trasera.id;}catch(e){status('No se pudo acceder a la cámara. Revise los permisos del navegador.','error');}}
- async function iniciar(){if(!autorizado||iniciando)return;iniciando=true;btn.disabled=true;try{if(!sel.value)await listarCamaras();if(!sel.value)throw new Error('No se encontró una cámara disponible.');if(!lector)lector=new Html5Qrcode('reader',{verbose:false,formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE],experimentalFeatures:{useBarCodeDetectorIfSupported:true}});status('Cámara activa. Enfoque el QR dentro del recuadro.');await lector.start(sel.value,{fps:15,qrbox:function(viewfinderWidth,viewfinderHeight){const size=Math.floor(Math.min(viewfinderWidth,viewfinderHeight,280));return {width:size,height:size};}},async function(decoded){const code=String(decoded||'').trim();if(!code||code===ultimaLectura)return;ultimaLectura=code;status('Código leído. Enviando a BITAZETA…','ok');try{await lector.stop();}catch(e){}try{if(window.opener&&!window.opener.closed){window.opener.postMessage({type:'AZ_SCAN',code:code},origenPadre);status('Lectura enviada a BITAZETA.','ok');}else{status('BITAZETA ya no está abierta. Cierre esta ventana y vuelva a abrir el escáner.','error');}}catch(e){status('No se pudo enviar el código a BITAZETA.','error');}});}catch(e){status(e&&e.message?e.message:'No se pudo iniciar la cámara. Revise los permisos.','error');}finally{iniciando=false;btn.disabled=false;}}
- btn.addEventListener('click',iniciar);
- // La interfaz no muestra registros técnicos ni detalles de origen; solo estado útil para el usuario.
-})();
-</script></body></html>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BITAZETA · Escáner QR</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8"></script>
+
+  <style>
+    :root {
+      color-scheme: light;
+      --navy: #0f172a;
+      --teal: #0d9488;
+      --line: #dbe3ea;
+      --muted: #64748b;
+      --red: #b91c1c;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #f8fafc;
+      color: var(--navy);
+      font: 16px system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    .wrap {
+      width: min(100%, 620px);
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .head { padding: 12px 4px 18px; }
+    .head h1 { font-size: 22px; margin: 0; }
+
+    .head p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 4px 18px #0f172a0a;
+    }
+
+    #reader {
+      width: 100%;
+      min-height: 280px;
+      overflow: hidden;
+      border-radius: 10px;
+      background: #0f172a;
+    }
+
+    button, select {
+      width: 100%;
+      padding: 13px;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      font: inherit;
+      margin-top: 10px;
+    }
+
+    button {
+      background: var(--teal);
+      color: #fff;
+      border: 0;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    #estado {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 13px;
+      white-space: pre-line;
+    }
+
+    #estado.error { background: #fee2e2; color: var(--red); }
+    #estado.ok { background: #dcfce7; color: #166534; }
+
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+
+    @media (min-width: 560px) {
+      .wrap { padding: 26px; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="wrap">
+    <header class="head">
+      <h1>BITAZETA · ESCANEAR QR</h1>
+      <p>
+        Apunte la cámara del PC al código QR que aparece en el celular
+        o que está impreso.
+      </p>
+    </header>
+
+    <section class="card">
+      <div id="reader"></div>
+
+      <label for="camera"
+        style="display:block;margin-top:12px;font-size:12px;color:#64748b">
+        Cámara del PC
+      </label>
+
+      <select id="camera">
+        <option value="">Detectando cámaras…</option>
+      </select>
+
+      <button id="iniciar" type="button" disabled>
+        Iniciar cámara
+      </button>
+
+      <div id="estado">Esperando autorización de BITAZETA…</div>
+
+      <p class="small">
+        Esta ventana se comunica con BITAZETA para enviar el código leído.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const estado = document.getElementById('estado');
+      const sel = document.getElementById('camera');
+      const btn = document.getElementById('iniciar');
+
+      let autorizado = false;
+      let origenPadre = '';
+      let lector = null;
+      let iniciando = false;
+      let ultimaLectura = '';
+
+      function status(texto, tipo) {
+        estado.textContent = texto;
+        estado.className = tipo || '';
+      }
+
+      function origenPermitido(origin) {
+        try {
+          const u = new URL(origin);
+
+          return u.protocol === 'https:' &&
+            (
+              u.hostname === 'script.google.com' ||
+              u.hostname.endsWith('.googleusercontent.com')
+            );
+        } catch (e) {
+          return false;
+        }
+      }
+
+      window.addEventListener('message', async function (e) {
+        if (
+          e.source !== window.opener ||
+          !e.data ||
+          e.data.type !== 'BITAZETA_QR_AUTH'
+        ) {
+          return;
+        }
+
+        if (!origenPermitido(e.origin)) {
+          status('No se pudo validar la ventana de BITAZETA.', 'error');
+          return;
+        }
+
+        if (e.data.autorizado !== true) {
+          status('La sesión no está autorizada.', 'error');
+          return;
+        }
+
+        origenPadre = e.origin;
+        autorizado = true;
+
+        status(
+          'Autorizado. Seleccione la cámara del PC e inicie el escaneo.',
+          'ok'
+        );
+
+        btn.disabled = false;
+        await listarCamaras();
+      });
+
+      async function listarCamaras() {
+        try {
+          const cams = await Html5Qrcode.getCameras();
+          sel.innerHTML = '';
+
+          if (!cams.length) {
+            sel.innerHTML =
+              '<option value="">No se encontraron cámaras</option>';
+            return;
+          }
+
+          cams.forEach(function (camara, i) {
+            const opcion = document.createElement('option');
+            opcion.value = camara.id;
+            opcion.textContent =
+              camara.label || ('Cámara ' + (i + 1));
+
+            sel.appendChild(opcion);
+          });
+
+        } catch (e) {
+          status(
+            'No se pudo acceder a la cámara.\n' +
+            'Revise los permisos del navegador.',
+            'error'
+          );
+        }
+      }
+
+      async function iniciar() {
+        if (!autorizado || iniciando) return;
+
+        iniciando = true;
+        btn.disabled = true;
+
+        try {
+          if (!sel.value) {
+            await listarCamaras();
+          }
+
+          if (!sel.value) {
+            throw new Error('No se encontró una cámara disponible.');
+          }
+
+          if (!lector) {
+            lector = new Html5Qrcode('reader', {
+              verbose: false,
+              formatsToSupport: [
+                Html5QrcodeSupportedFormats.QR_CODE
+              ],
+              experimentalFeatures: {
+                useBarCodeDetectorIfSupported: true
+              }
+            });
+          }
+
+          status(
+            'Cámara activa.\n' +
+            'Mantenga el QR completo dentro del recuadro y evite reflejos.'
+          );
+
+          await lector.start(
+            sel.value,
+            {
+              // Aumenta la frecuencia de análisis de fotogramas.
+              fps: 20,
+
+              // Amplía el área de lectura para QR en pantallas.
+              qrbox: function (ancho, alto) {
+                const size = Math.floor(
+                  Math.min(ancho, alto, 320)
+                );
+
+                return {
+                  width: size,
+                  height: size
+                };
+              }
+            },
+
+            async function (decodedText) {
+              const code = String(decodedText || '').trim();
+
+              if (!code || code === ultimaLectura) return;
+
+              ultimaLectura = code;
+
+              status('Código leído.\nEnviando a BITAZETA…', 'ok');
+
+              try {
+                await lector.stop();
+              } catch (e) {}
+
+              try {
+                if (window.opener && !window.opener.closed) {
+                  window.opener.postMessage(
+                    {
+                      type: 'AZ_SCAN',
+                      code: code
+                    },
+                    origenPadre
+                  );
+
+                  status('Lectura enviada a BITAZETA.', 'ok');
+
+                } else {
+                  status(
+                    'BITAZETA ya no está abierta. Cierre esta ventana ' +
+                    'y vuelva a abrir el escáner.',
+                    'error'
+                  );
+                }
+
+              } catch (e) {
+                status(
+                  'No se pudo enviar el código a BITAZETA.',
+                  'error'
+                );
+              }
+            }
+          );
+
+        } catch (e) {
+          status(
+            e && e.message
+              ? e.message
+              : 'No se pudo iniciar la cámara.\nRevise los permisos.',
+            'error'
+          );
+
+        } finally {
+          iniciando = false;
+          btn.disabled = false;
+        }
+      }
+
+      btn.addEventListener('click', iniciar);
+    })();
+  </script>
+</body>
+</html>
