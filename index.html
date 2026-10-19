@@ -2,94 +2,69 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>BITAZETA · Escáner QR</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8"></script>
 <style>
-:root{color-scheme:light;--navy:#0f172a;--teal:#0d9488;--line:#dbe3ea;--muted:#64748b;--red:#b91c1c}
 *{box-sizing:border-box}
-body{margin:0;background:#f8fafc;color:var(--navy);font:16px system-ui,-apple-system,Segoe UI,sans-serif}
-.wrap{width:min(100%,620px);margin:0 auto;padding:14px}
-.head{padding:8px 4px 12px}
-.head h1{font-size:21px;margin:0}
-.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 4px 18px #0f172a0a}
-#reader{width:100%;min-height:260px;overflow:hidden;border-radius:10px;background:#0f172a}
-#estado{margin-top:10px;padding:9px 11px;border-radius:8px;background:#f1f5f9;color:#475569;font-size:13px}
-#estado.error{background:#fee2e2;color:var(--red)}
-#estado.ok{background:#dcfce7;color:#166534}
-@media(min-width:560px){.wrap{padding:20px}}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+#reader{position:fixed;inset:0;width:100vw;height:100dvh;background:#000;overflow:hidden;border:0}
+#reader video{object-fit:cover}
+#estado{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);max-width:92vw;padding:7px 11px;border-radius:7px;background:#111d;color:#fff;font-size:12px;text-align:center;display:none;z-index:10}
+#estado.visible{display:block}
+#reader__dashboard,#reader__dashboard_section,#reader__dashboard_section_csr,#reader__camera_selection{display:none!important}
+#reader__scan_region{width:100%!important;min-height:100%!important;display:flex;align-items:center;justify-content:center}
+#reader__scan_region img{display:none!important}
 </style>
 </head>
 <body>
-<main class="wrap">
-  <header class="head"><h1>BITAZETA · ESCANEAR QR</h1></header>
-  <section class="card">
-    <div id="reader"></div>
-    <div id="estado">Esperando autorización…</div>
-  </section>
-</main>
+<div id="reader" aria-label="Escáner QR"></div>
+<div id="estado" role="status"></div>
 <script>
 (function(){
   const estado=document.getElementById('estado');
-  let autorizado=false, origenPadre='', lector=null, iniciando=false, ultimaLectura='', iniciado=false;
-
-  function status(texto,tipo){estado.textContent=texto;estado.className=tipo||'';}
-  function origenPermitido(origin){
-    try{const u=new URL(origin);return u.protocol==='https:'&&(u.hostname==='script.google.com'||u.hostname.endsWith('.googleusercontent.com'));}
-    catch(e){return false;}
+  let autorizado=false,origenPadre='',lector=null,iniciando=false,iniciado=false,procesando=false;
+  function status(t,visible){estado.textContent=t;estado.className=visible?'visible':'';}
+  function origenPermitido(origin){try{const u=new URL(origin);return u.protocol==='https:'&&(u.hostname==='script.google.com'||u.hostname.endsWith('.googleusercontent.com'));}catch(e){return false;}}
+  function cerrarVentana(){
+    // BITAZETA abre esta ventana con window.open, por lo que el navegador permite cerrarla.
+    window.close();
+    // Respaldo visual si el navegador impide el cierre automático.
+    setTimeout(function(){if(!window.closed)status('Código enviado. Puede cerrar esta ventana.',true);},350);
   }
-
   async function iniciarAutomatico(){
     if(!autorizado||iniciando||iniciado)return;
     iniciando=true;
     try{
-      if(typeof Html5Qrcode==='undefined')throw new Error('No se pudo cargar el lector QR. Recargue la página.');
-      if(!lector)lector=new Html5Qrcode('reader',{verbose:false,formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE],experimentalFeatures:{useBarCodeDetectorIfSupported:true}});
-      status('Activando cámara…');
-
-      // Usa automáticamente la primera cámara disponible; no muestra selector.
-      let camaras=[];
-      try{camaras=await Html5Qrcode.getCameras();}catch(e){}
-      const preferida=camaras.find(c=>/2m camera|webcam|usb|integrated|hd camera/i.test(c.label||''))||camaras[0];
-      const opciones={fps:20,qrbox:function(ancho,alto){const size=Math.floor(Math.min(ancho,alto,320));return {width:size,height:size};},aspectRatio:1.0};
+      if(typeof Html5Qrcode==='undefined')throw new Error('No se pudo cargar el lector QR.');
+      lector=new Html5Qrcode('reader',{verbose:false,formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE],experimentalFeatures:{useBarCodeDetectorIfSupported:true}});
+      const opciones={fps:24,qrbox:function(w,h){const s=Math.floor(Math.min(w,h,360));return {width:s,height:s};},aspectRatio:1.0,disableFlip:false};
       const leido=async function(decoded){
-        const code=String(decoded||'').trim();
-        if(!code||code===ultimaLectura)return;
-        ultimaLectura=code;
-        status('Código leído. Enviando…','ok');
+        if(procesando)return;
+        const code=String(decoded||'').trim();if(!code)return;
+        procesando=true;
         try{if(lector&&lector.isScanning)await lector.stop();}catch(e){}
         try{
           if(window.opener&&!window.opener.closed){
             window.opener.postMessage({type:'AZ_SCAN',code:code},origenPadre);
-            status('Código enviado a BITAZETA.','ok');
-          }else status('BITAZETA ya no está abierta.','error');
-        }catch(e){status('No se pudo enviar el código a BITAZETA.','error');}
+            cerrarVentana();
+          }else{status('BITAZETA ya no está abierta.',true);}
+        }catch(e){status('No se pudo enviar el código a BITAZETA.',true);}
       };
-
-      try{
-        if(preferida&&preferida.id)await lector.start(preferida.id,opciones,leido,function(){});
-        else await lector.start({facingMode:'user'},opciones,leido,function(){});
-      }catch(primerError){
-        // Respaldo: permite que el navegador escoja una cámara si la preferida falla.
-        if(preferida&&preferida.id)throw primerError;
-        await lector.start({facingMode:'environment'},opciones,leido,function(){});
-      }
+      // Intenta la cámara frontal/normal del PC sin mostrar una lista de cámaras.
+      try{await lector.start({facingMode:'user'},opciones,leido,function(){});}
+      catch(e){await lector.start({facingMode:'environment'},opciones,leido,function(){});}
       iniciado=true;
-      status('Cámara activa. Apunte al código QR.','ok');
     }catch(e){
-      const mensaje=(e&&e.message)?e.message:String(e||'');
-      status(/permission|notallowed|denied/i.test(mensaje)?'Permita el acceso a la cámara en Chrome y vuelva a abrir el escáner.':'No se pudo iniciar la cámara. '+mensaje,'error');
+      const m=String(e&&e.message||e||'');
+      status(/permission|notallowed|denied/i.test(m)?'Permita el acceso a la cámara en Chrome y vuelva a abrir el escáner.':'No se pudo iniciar la cámara. Revise el permiso del navegador.',true);
     }finally{iniciando=false;}
   }
-
   window.addEventListener('message',function(e){
     if(e.source!==window.opener||!e.data||e.data.type!=='BITAZETA_QR_AUTH')return;
-    if(!origenPermitido(e.origin)){status('No se pudo validar la ventana de BITAZETA.','error');return;}
-    if(e.data.autorizado!==true){status('Sesión no autorizada.','error');return;}
-    origenPadre=e.origin;
-    autorizado=true;
-    status('Autorizado. Activando cámara…','ok');
-    iniciarAutomatico();
+    if(!origenPermitido(e.origin)){status('No se pudo validar la ventana de BITAZETA.',true);return;}
+    if(e.data.autorizado!==true){status('Sesión no autorizada.',true);return;}
+    origenPadre=e.origin;autorizado=true;iniciarAutomatico();
   });
 })();
 </script>
