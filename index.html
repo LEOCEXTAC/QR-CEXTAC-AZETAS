@@ -8,12 +8,13 @@
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
-#reader{position:fixed;inset:0;width:100vw;height:100dvh;background:#000;overflow:hidden;border:0}
-#reader video{object-fit:cover}
+#reader{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,72dvh);height:min(92vw,72dvh);background:#000;overflow:hidden;border:0}
+#reader video{width:100%!important;height:100%!important;object-fit:cover!important}
+#reader__scan_region{width:100%!important;height:100%!important;min-height:0!important;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#reader__scan_region video{width:100%!important;height:100%!important;object-fit:cover!important}
 #estado{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);max-width:92vw;padding:7px 11px;border-radius:7px;background:#111d;color:#fff;font-size:12px;text-align:center;display:none;z-index:10}
 #estado.visible{display:block}
 #reader__dashboard,#reader__dashboard_section,#reader__dashboard_section_csr,#reader__camera_selection{display:none!important}
-#reader__scan_region{width:100%!important;min-height:100%!important;display:flex;align-items:center;justify-content:center}
 #reader__scan_region img{display:none!important}
 </style>
 </head>
@@ -38,7 +39,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-f
     try{
       if(typeof Html5Qrcode==='undefined')throw new Error('No se pudo cargar el lector QR.');
       lector=new Html5Qrcode('reader',{verbose:false,formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE],experimentalFeatures:{useBarCodeDetectorIfSupported:true}});
-      const opciones={fps:24,qrbox:function(w,h){const s=Math.floor(Math.min(w,h,360));return {width:s,height:s};},aspectRatio:1.0,disableFlip:false};
+      const opciones={fps:24,qrbox:function(w,h){const s=Math.floor(Math.min(w,h,280));return {width:s,height:s};},aspectRatio:1.0,disableFlip:false};
       const leido=async function(decoded){
         if(procesando)return;
         const code=String(decoded||'').trim();if(!code)return;
